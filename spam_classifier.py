@@ -1,7 +1,8 @@
 import pandas as pd
+import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
 
 # 1. Load Dataset
@@ -14,28 +15,46 @@ data.columns = ['label', 'message']
 # 3. Convert labels to numbers
 data['label'] = data['label'].map({'spam': 1, 'ham': 0})
 
-# 4. Convert text to numbers
-vectorizer = TfidfVectorizer(stop_words='english')
+# 4. Basic text cleaning
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'\W+', ' ', text)
+    return text
+
+data['message'] = data['message'].apply(clean_text)
+
+# 5. Convert text to numbers (IMPROVED TF-IDF)
+vectorizer = TfidfVectorizer(
+    stop_words='english',
+    ngram_range=(1, 2),   # unigrams + bigrams
+    max_df=0.9,
+    min_df=2
+)
+
 X = vectorizer.fit_transform(data['message'])
 y = data['label']
 
-# 5. Split data
+# 6. Split data (important fix)
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
 )
 
-# 6. Train model
-model = MultinomialNB()
+# 7. Train model (BETTER THAN NAIVE BAYES)
+model = LogisticRegression(max_iter=1000)
 model.fit(X_train, y_train)
 
-# 7. Evaluate model
+# 8. Evaluate model
 y_pred = model.predict(X_test)
 print("Accuracy:", accuracy_score(y_test, y_pred))
 print(classification_report(y_test, y_pred))
 
-# 8. Test with custom input
-email = ["tommorrow there is a meeting at 11 am"]
-email_vector = vectorizer.transform(email)
+# 9. Test with custom input
+email = ["ALERT: Your bank account has been temporarily suspended. "]
+email_cleaned = [clean_text(email[0])]
+email_vector = vectorizer.transform(email_cleaned)
 prediction = model.predict(email_vector)
 
 print("\nTest Email Result:")
